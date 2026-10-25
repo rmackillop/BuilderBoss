@@ -1,6 +1,10 @@
 # BuilderBoss — POC 1.0
 
-Minimal multi-tenant construction management PWA. Code foundation only until Supabase project and Vercel team access are available.
+Minimal multi-tenant construction management PWA. POC 1.0 is deployed on Vercel with Supabase authentication and PostgreSQL row-level security.
+
+## Live POC
+- Production: https://builderboss.sunhavengc.com
+- GitHub main is connected to the existing Vercel BuilderBoss project for automated deployments.
 
 ## Setup
 1. Create Supabase project in the existing BuilderBoss organization.
