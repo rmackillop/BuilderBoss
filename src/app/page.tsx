@@ -10,7 +10,6 @@ type Settings = { dependency_mode:'advise'|'enforce'; display_name:string|null }
 type Membership = { organization_id:string; role:string; organizations:Org | Org[] | null };
 
 const sb = getSupabase();
-function errText(e: unknown) { return e instanceof Error ? e.message : String(e); }
 export default function Home() {
   const [user,setUser] = useState<User|null>(null);
   const [ready,setReady] = useState(false);
@@ -75,12 +74,33 @@ export default function Home() {
     if(q)setNotice('Error: '+q.message);else {setProjects(p=>[data as Project,...p]);setNewProject('');setNotice('Project saved');}
     setBusy(false);
   }
-  async function renameProject(p:Project) {
-    if(!sb)return;
-    const name=window.prompt('Rename project',p.name);
-    if(!name?.trim()||name.trim()===p.name)return;
-    const {error:q}=await sb.from('projects').update({name:name.trim()}).eq('id',p.id);
-    if(q)setNotice('Error: '+q.message);else setProjects(xs=>xs.map(x=>x.id===p.id?{...x,name:name.trim()}:x));
+  async function editProject(p:Project) {
+    if(!sb||!org)return;
+    const name=window.prompt('Project name',p.name);
+    if(name===null)return;
+    const nextName=name.trim();
+    if(!nextName){setNotice('Project name cannot be empty');return;}
+    const description=window.prompt('Project description (optional)',p.description??'');
+    if(description===null)return;
+    setBusy(true);setNotice('');
+    const {data,error:q}=await sb.from('projects')
+      .update({name:nextName,description:description.trim()||null})
+      .eq('organization_id',org.id).eq('id',p.id)
+      .select('id,name,description').single();
+    if(q)setNotice('Error: '+q.message);
+    else {setProjects(xs=>xs.map(x=>x.id===p.id?data as Project:x));setNotice('Project updated');}
+    setBusy(false);
+  }
+  async function deleteProject(p:Project) {
+    if(!sb||!org||busy)return;
+    if(!window.confirm(`Delete project "${p.name}"? This cannot be undone.`))return;
+    setBusy(true);setNotice('');
+    const {data,error:q}=await sb.from('projects').delete()
+      .eq('organization_id',org.id).eq('id',p.id).select('id');
+    if(q)setNotice('Error: '+q.message);
+    else if(!data?.length)setNotice('Project was not deleted. Refresh and try again.');
+    else {setProjects(xs=>xs.filter(x=>x.id!==p.id));setNotice('Project deleted');}
+    setBusy(false);
   }
   async function saveSettings(e:FormEvent) {
     e.preventDefault();if(!sb||!org||!user)return;setBusy(true);setNotice('');
@@ -100,7 +120,7 @@ export default function Home() {
     <main className="content">
       {notice&&<p className="message" role="status">{notice}</p>}
       {tab==='dashboard'&&<section><h1>Welcome to BuilderBoss</h1><p className="muted">{user.email}</p><div className="cards"><article className="panel"><h2>Organization</h2><p>{org?.name??'No organization assigned'}</p><small>{role||'Contact an administrator'}</small></article><article className="panel"><h2>Projects</h2><p className="stat">{projects.length}</p><button className="link" onClick={()=>setTab('projects')}>View projects →</button></article><article className="panel"><h2>Database</h2><p>{dbStatus}</p></article></div></section>}
-      {tab==='projects'&&<section><h1>Projects</h1><p className="muted">Projects for {org?.name??'your organization'}</p><div className="panel"><form className="inline" onSubmit={createProject}><input aria-label="Project name" placeholder="New project name" required value={newProject} onChange={e=>setNewProject(e.target.value)} disabled={!org}/><button disabled={busy||!org}>Add project</button></form></div><div className="stack">{projects.map(p=><article className="panel item" key={p.id}><div><strong>{p.name}</strong><p className="muted">{p.description||'No description yet'}</p></div><button className="secondary" onClick={()=>void renameProject(p)}>Rename</button></article>)}{!projects.length&&<p className="muted">No projects yet. Add your first one above.</p>}</div></section>}
+      {tab==='projects'&&<section><h1>Projects</h1><p className="muted">Projects for {org?.name??'your organization'}</p><div className="panel"><form className="inline" onSubmit={createProject}><input aria-label="Project name" placeholder="New project name" required value={newProject} onChange={e=>setNewProject(e.target.value)} disabled={!org}/><button disabled={busy||!org}>Add project</button></form></div><div className="stack">{projects.map(p=><article className="panel item" key={p.id}><div><strong>{p.name}</strong><p className="muted">{p.description||'No description yet'}</p></div><div className="item-actions"><button className="secondary" disabled={busy} onClick={()=>void editProject(p)}>Edit</button><button className="secondary" disabled={busy} onClick={()=>void deleteProject(p)}>Delete</button></div></article>)}{!projects.length&&<p className="muted">No projects yet. Add your first one above.</p>}</div></section>}
       {tab==='settings'&&<section><h1>Settings</h1><form onSubmit={saveSettings} className="panel stack"><label>Your display name<input value={userName} onChange={e=>setUserName(e.target.value)}/></label><label>Company display name<input value={settings.display_name??''} disabled={role!=='owner'&&role!=='admin'} onChange={e=>setSettings(s=>({...s,display_name:e.target.value}))}/></label><label>Dependency mode<select disabled={role!=='owner'&&role!=='admin'} value={settings.dependency_mode} onChange={e=>setSettings(s=>({...s,dependency_mode:e.target.value as Settings['dependency_mode']}))}><option value="advise">Advise</option><option value="enforce">Enforce</option></select></label><p className="muted">This setting is stored now; task dependency logic will be implemented later.</p><button disabled={busy||!org}>Save settings</button></form></section>}
       {tab==='status'&&<section><h1>System status</h1><div className="panel stack"><p><b>Application:</b> BuilderBoss POC 1.0</p><p><b>Authentication:</b> Signed in</p><p><b>Database:</b> {dbStatus}</p><p><b>Organization:</b> {org?.name??'Not assigned'}</p><p><b>Build environment:</b> {process.env.NODE_ENV}</p><p><b>App URL:</b> {typeof window!=='undefined'?window.location.origin:'—'}</p><button className="secondary" onClick={()=>window.location.reload()}>Rerun diagnostics</button></div></section>}
     </main></div>
