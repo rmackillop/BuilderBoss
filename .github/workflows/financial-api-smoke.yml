@@ -1,0 +1,21 @@
+name: Financial API smoke test
+on:
+  push:
+    branches: [feature/financial-api-v1]
+  workflow_dispatch:
+jobs:
+  anonymous-auth-denial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Unauthenticated context request must return 401
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=$(curl --fail-with-body --silent --show-error --output /tmp/api-response --write-out '%{http_code}' --max-time 20 'https://builderboss.sunhavengc.com/api/v1/financial/context' || true)
+          echo "HTTP status: $status"
+          if [ "$status" != "401" ]; then
+            head -c 300 /tmp/api-response || true
+            exit 1
+          fi
+          grep -q 'UNAUTHENTICATED' /tmp/api-response
