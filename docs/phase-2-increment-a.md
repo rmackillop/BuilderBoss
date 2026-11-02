@@ -27,11 +27,17 @@ Approved commitment and recorded cash-payment subtotals are calculated separatel
 
 ## Verification and test register mapping
 
-Run `pnpm lint`, `pnpm test`, and `pnpm build`. Fourteen automated tests mock external services and verify authentication denial, organization denial, caller-token forwarding, returned database data, unavailable project denial, write rejection, malformed/unsupported tool rejection, existing API error propagation, reports routing, MP4/M4A transcription transport, non-audio rejection, bounded streaming uploads, and empty-speech handling. They do not count as live financial acceptance tests.
+Run `pnpm lint`, `pnpm test`, and `pnpm build`. Seventeen automated tests mock external services and verify authentication denial, organization denial, caller-token forwarding, returned database data, unavailable project denial, write rejection, malformed/unsupported tool rejection, existing API error propagation, reports routing, MP4/M4A transcription transport, non-audio rejection, bounded streaming uploads, empty-speech handling, and safe provider-error classification. They do not count as live financial acceptance tests.
 
 Increment A enables execution of VOICE-01/02/03/04 and read-side portions of VOICE-05, REPORT-09, and OPS-05. Physical speech input, actual OpenAI routing, authenticated API reads, and account switching must be executed before any corresponding Pass status. VOICE-06 through VOICE-10 and financial mutations remain deferred to Increment B; other unsupported capabilities and separate-environment tests remain deferred. Preserve prior historical test evidence instead of rewriting it as voice-test evidence.
 
 ## Release and rollback
+
+November 2 live release: commit `90b6a94d0b50749889fa0b96ff7b578ea0fbeded`, production deployment `dpl_BVNUUWAep1hqW9gCi27wEUJa3fyB`, `builderboss-8tpr9vu88-builderboss.vercel.app`, READY and assigned to `builderboss.sunhavengc.com`. Production builds completed on Vercel. Local type check and 17 automated tests passed; local Webpack production build passed (local Turbopack had a Windows child-process error).
+
+The actual production browser session was independently observed as `richmackillop@gmail.com`, Sun Haven Owner. Login/session persistence and project discovery worked after deployment. A typed Mineola Lot 20 summary was submitted; Gateway rejected the request with HTTP 403 requiring account verification. No financial result was returned and no voice test passed. The user must complete AI Gateway account verification before retrying; do not call this milestone achieved. The existing register records the executed typed attempt as Blocked, including account, role, date, and commit evidence. Voice and Member-session acceptance remain unexecuted.
+
+Independent read-only database baseline for Lot 20: 13 commitments; approved commitment total $129,808.62; 16 financial transactions; recorded cash-payment total $87,915.22; 0 bills. These figures are verification expectations, not simulated application responses. No database records, policies, or memberships were modified. A deployed anonymous financial context GET returned UNAUTHENTICATED. No log drains are configured; runtime logs identified the provider rejection. The original baseline below remains available for rollback.
 
 Push the reviewed code to the existing feature branch to trigger the existing Git/Vercel preview pipeline. Verify the build, stage a production deployment for the same commit, and verify before assigning the production domain. Keep the baseline deployment above available; restore its alias if release checks fail. Do not merge draft PR #2 merely because a build succeeds.
 
