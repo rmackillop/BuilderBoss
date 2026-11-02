@@ -48,7 +48,10 @@ export async function openAI(path: 'responses' | 'audio/transcriptions', payload
     let code = '';
     try {
       const error = await response.json();
-      if (typeof error.error?.code === 'string' && /^[a-z_]{1,60}$/.test(error.error.code)) code = error.error.code;
+      const providerCode = error.error?.code ?? error.error?.type ?? error.code ?? error.type;
+      if (typeof providerCode === 'string' && /^[a-zA-Z0-9_.:-]{1,80}$/.test(providerCode)) code = providerCode;
+      const providerMessage = typeof error.error?.message === 'string' ? error.error.message : typeof error.error === 'string' ? error.error : '';
+      if (/customer.verification|payment method|verify your account/i.test(providerMessage)) code = 'customer_verification_required';
     } catch { /* Provider may return a non-JSON error. */ }
     // No credentials, prompts, recordings, or financial data enter application logs.
     console.error('AI provider request rejected', { endpoint: path, status: response.status, code });
@@ -57,7 +60,8 @@ export async function openAI(path: 'responses' | 'audio/transcriptions', payload
     if (code === 'customer_verification_required') throw new ApiError(503, 'AI_ACCOUNT_VERIFICATION', 'Vercel AI Gateway requires account verification before this request can run. Please check AI Gateway in Vercel.');
     if (code === 'insufficient_quota') throw new ApiError(503, 'AI_QUOTA_EXHAUSTED', 'The AI account has no available API credits or has reached its spending limit. Please contact your administrator.');
     if (response.status === 429) throw new ApiError(429, 'AI_RATE_LIMITED', 'The AI provider is busy or rate limited. Please wait a minute and try again.');
-    if (response.status === 403 || response.status === 404) throw new ApiError(503, 'AI_MODEL_UNAVAILABLE', 'The configured AI model is unavailable to this account. Please contact your administrator.');
+    if (response.status === 403) throw new ApiError(503, 'AI_ACCESS_DENIED', 'Vercel AI Gateway denied this request. Please check account verification and the key’s model permissions in AI Gateway.');
+    if (response.status === 404) throw new ApiError(503, 'AI_MODEL_UNAVAILABLE', 'The configured AI model is unavailable to this account. Please contact your administrator.');
     throw new ApiError(502, 'AI_UNAVAILABLE', 'The AI service is unavailable. Please try again or contact your administrator.');
   }
   return response.json();
