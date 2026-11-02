@@ -12,7 +12,7 @@ function fixture(options = {}) {
     authorized: async () => { if (options.noAuth) throw new ApiError(401, 'UNAUTHENTICATED', 'Sign in'); return { user: { id: 'actor' } }; },
     ok: data => NextResponse.json({ data }), fail: e => NextResponse.json({ error: { code: e.code } }, { status: e.status || 500 })
   };
-  const ai = { limitAI() {}, aiKey() {}, openAI: async (path, form) => { upstreamCalls++; assert.equal(path, 'audio/transcriptions'); assert.equal(form.get('model'), 'gpt-4o-mini-transcribe'); assert.equal(form.get('file').name, 'instruction.m4a'); return { text: options.silence ? '' : ' Show Project A ' }; } };
+  const ai = { limitAI() {}, aiKey() {}, openAI: async (path, form) => { upstreamCalls++; assert.equal(path, 'audio/transcriptions'); assert.equal(form.get('model'), 'openai/gpt-transcribe'); assert.equal(form.get('file').name, 'instruction.m4a'); return { text: options.silence ? '' : ' Show Project A ' }; } };
   const code = ts.transpileModule(fs.readFileSync('src/app/api/transcription/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports, require: name => name.includes('financial-api') ? api : ai, process: { env: {} }, Response, File, FormData, Buffer });

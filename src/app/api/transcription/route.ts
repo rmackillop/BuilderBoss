@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     if (!(audio instanceof File) || !audio.size || !['audio/webm','audio/mp4','audio/mpeg','audio/wav','audio/x-m4a','audio/ogg'].includes(audio.type.split(';')[0])) throw new ApiError(400, 'INVALID_AUDIO', 'Unsupported or empty recording. Please use text input.');
     const upstream = new FormData();
     upstream.set('file', audio, audio.type.includes('mp4') || audio.type.includes('m4a') ? 'instruction.m4a' : audio.type.includes('ogg') ? 'instruction.ogg' : audio.type.includes('wav') ? 'instruction.wav' : audio.type.includes('mpeg') ? 'instruction.mp3' : 'instruction.webm');
-    upstream.set('model', process.env.OPENAI_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe');
+    upstream.set('model', process.env.AI_GATEWAY_TRANSCRIPTION_MODEL || 'openai/gpt-transcribe');
     const result = await openAI('audio/transcriptions', upstream);
     if (typeof result.text !== 'string' || !result.text.trim()) throw new ApiError(422, 'NO_SPEECH', 'No speech detected. Please try again or type your instruction.');
     return ok({ text: result.text.trim().slice(0, 2000) });
