@@ -7,8 +7,10 @@ type Params = { params: Promise<{ path: string[] }> };
 const optionalUUID = (v:unknown, key:string) => v == null ? null : uuid(v,key);
 function queryId(req: NextRequest, name: string) { return uuid(req.nextUrl.searchParams.get(name),name); }
 async function list(db: Awaited<ReturnType<typeof authorized>>['db'], table: string, column: string, value: string) {
-  const {data,error} = await db.from(table).select('*').eq(column,value).limit(500);
-  validateDb(error); return data ?? [];
+  const {data,error} = await db.from(table).select('*').eq(column,value).limit(501);
+  validateDb(error);
+  if (data && data.length > 500) throw new ApiError(422, 'RESULT_LIMIT', 'This project has more records than this increment can display. A paginated lookup is required.');
+  return data ?? [];
 }
 export async function GET(req: NextRequest, ctx: Params) {
   try {

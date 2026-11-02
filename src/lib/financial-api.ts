@@ -61,7 +61,9 @@ export async function body(request: NextRequest) {
   return parsed as Record<string, unknown>;
 }
 export async function orgAccess(db: Db, organizationId: string) {
-  const { data, error } = await db.from('organization_members').select('role').eq('organization_id', uuid(organizationId,'organization_id')).maybeSingle();
+  const { data: identity, error: authError } = await db.auth.getUser();
+  if (authError || !identity.user) throw new ApiError(401, 'UNAUTHENTICATED', 'Please sign in again');
+  const { data, error } = await db.from('organization_members').select('role').eq('organization_id', uuid(organizationId,'organization_id')).eq('user_id', identity.user.id).maybeSingle();
   validateDb(error);
   if (!data) throw new ApiError(403, 'FORBIDDEN', 'Organization membership required');
   return data.role as string;
