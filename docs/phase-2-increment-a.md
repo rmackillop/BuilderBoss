@@ -27,7 +27,7 @@ Approved commitment and recorded cash-payment subtotals are calculated separatel
 
 ## Verification and test register mapping
 
-Run `pnpm lint`, `pnpm test`, and `pnpm build`. The route boundary tests mock external services and verify authentication denial, organization denial, caller-token forwarding, returned database data, unavailable project denial, write rejection, malformed/unsupported tool rejection, existing API error propagation, and reports routing. They do not count as live financial acceptance tests.
+Run `pnpm lint`, `pnpm test`, and `pnpm build`. Fourteen automated tests mock external services and verify authentication denial, organization denial, caller-token forwarding, returned database data, unavailable project denial, write rejection, malformed/unsupported tool rejection, existing API error propagation, reports routing, MP4/M4A transcription transport, non-audio rejection, bounded streaming uploads, and empty-speech handling. They do not count as live financial acceptance tests.
 
 Increment A enables execution of VOICE-01/02/03/04 and read-side portions of VOICE-05, REPORT-09, and OPS-05. Physical speech input, actual OpenAI routing, authenticated API reads, and account switching must be executed before any corresponding Pass status. VOICE-06 through VOICE-10 and financial mutations remain deferred to Increment B; other unsupported capabilities and separate-environment tests remain deferred. Preserve prior historical test evidence instead of rewriting it as voice-test evidence.
 
