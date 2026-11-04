@@ -17,7 +17,7 @@ function FinancialResult({ result }: { result: Result }) {
   const sum = (rows: Row[]) => rows.reduce((cents, row) => cents + Math.round(Number(row.amount) * 100), 0) / 100;
   return <div className="financial-result">
     <p className="muted">Retrieved {new Date(result.retrieved_at!).toLocaleString()} · Live database records</p>
-    <p className="message">Commitments, invoices, and payments are separate ledgers. These records do not establish an outstanding balance, approved budget, or variance. Legacy payments must be reconciled before reporting totals.</p>
+    {(result.view === 'summary' || result.view === 'reports') && <p className="message">Commitments, invoices, and payments are separate ledgers. These records do not establish an outstanding balance, approved budget, or variance. Legacy payments must be reconciled before reporting totals.</p>}
     {result.view === 'summary' && <div className="cards"><div><strong>Approved commitments</strong><p>{dollars(sum(commitments.filter(r => r.status === 'approved')))}</p></div><div><strong>Recorded cash payments</strong><p>{dollars(sum(transactions.filter(r => r.transaction_kind === 'payment' && r.cash_effect === true && !r.voided_at)))}</p><small>Financial transaction ledger only</small></div></div>}
     {sections.map(section => {
       const rows = Array.isArray(records[section]) ? records[section] as Row[] : [];
