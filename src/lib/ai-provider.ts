@@ -3,7 +3,7 @@ import { ApiError } from './financial-api';
 export function aiKey() {
   // The initial deployment stored the Gateway key under OPENAI_API_KEY.
   // Vercel cannot rename sensitive variables; retain that server-only alias.
-  const key = process.env.AI_GATEWAY_API_KEY || process.env.OPENAI_API_KEY;
+  const key = process.env.AI_PROVIDER === 'openai' ? process.env.OPENAI_API_KEY : (process.env.AI_GATEWAY_API_KEY || process.env.OPENAI_API_KEY);
   if (!key) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'Voice and conversation are awaiting server configuration. Please contact your administrator.');
   return key;
 }
@@ -21,26 +21,35 @@ export function limitAI(userId: string) {
 export async function openAI(path: 'responses' | 'audio/transcriptions', payload: Record<string, unknown> | FormData) {
   const headers: Record<string, string> = { Authorization: `Bearer ${aiKey()}` };
   headers['Content-Type'] = 'application/json';
-  let endpoint = 'https://ai-gateway.vercel.sh/v1/responses';
+  const direct = process.env.AI_PROVIDER === 'openai';
+  let endpoint = direct ? 'https://api.openai.com/v1/responses' : 'https://ai-gateway.vercel.sh/v1/responses';
   let requestBody: Record<string, unknown>;
   if (path === 'audio/transcriptions') {
     if (!(payload instanceof FormData)) throw new ApiError(500, 'INVALID_AUDIO_REQUEST', 'Recording could not be prepared.');
     const file = payload.get('file');
     if (!(file instanceof File)) throw new ApiError(400, 'INVALID_AUDIO', 'Recording is required.');
-    endpoint = 'https://ai-gateway.vercel.sh/v4/ai/transcription-model';
-    headers['ai-gateway-protocol-version'] = '0.0.1';
-    headers['ai-transcription-model-specification-version'] = '4';
-    headers['ai-model-id'] = String(payload.get('model'));
-    requestBody = { audio: Buffer.from(await file.arrayBuffer()).toString('base64'), mediaType: file.type.split(';')[0] };
+    endpoint = direct ? 'https://api.openai.com/v1/audio/transcriptions' : 'https://ai-gateway.vercel.sh/v4/ai/transcription-model';
+    if (direct) {
+      delete headers['Content-Type'];
+      const form = new FormData();
+      form.set('file', file);
+      form.set('model', String(payload.get('model')).replace(/^openai\\//, ''));
+      requestBody = form as unknown as Record<string, unknown>;
+    } else {
+      headers['ai-gateway-protocol-version'] = '0.0.1';
+      headers['ai-transcription-model-specification-version'] = '4';
+      headers['ai-model-id'] = String(payload.get('model'));
+      requestBody = { audio: Buffer.from(await file.arrayBuffer()).toString('base64'), mediaType: file.type.split(';')[0] };
+    }
   } else {
     if (payload instanceof FormData) throw new ApiError(500, 'INVALID_AI_REQUEST', 'Instruction could not be prepared.');
-    requestBody = payload;
+    requestBody = direct ? { ...payload, model: String(payload.model ?? '').replace(/^openai\\//, '') } : payload;
   }
   let response: Response;
   try {
     response = await fetch(endpoint, {
       method: 'POST', headers,
-      body: JSON.stringify(requestBody),
+      body: requestBody instanceof FormData ? requestBody : JSON.stringify(requestBody),
       signal: AbortSignal.timeout(45000), cache: 'no-store'
     });
   } catch { throw new ApiError(504, 'AI_TIMEOUT', 'The AI service did not respond. Please try again.'); }
