@@ -33,7 +33,7 @@ export async function openAI(path: 'responses' | 'audio/transcriptions', payload
       delete headers['Content-Type'];
       const form = new FormData();
       form.set('file', file);
-      form.set('model', String(payload.get('model')).replace(/^openai\\//, ''));
+      form.set('model', String(payload.get('model')).replace('openai/', ''));
       requestBody = form as unknown as Record<string, unknown>;
     } else {
       headers['ai-gateway-protocol-version'] = '0.0.1';
@@ -43,7 +43,7 @@ export async function openAI(path: 'responses' | 'audio/transcriptions', payload
     }
   } else {
     if (payload instanceof FormData) throw new ApiError(500, 'INVALID_AI_REQUEST', 'Instruction could not be prepared.');
-    requestBody = direct ? { ...payload, model: String(payload.model ?? '').replace(/^openai\\//, '') } : payload;
+    requestBody = direct ? { ...payload, model: String(payload.model ?? '').replace('openai/', '') } : payload;
   }
   let response: Response;
   try {
