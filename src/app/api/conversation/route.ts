@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     if (intent.action === 'unsupported') return ok({ message: 'Financial changes are not enabled yet. This increment can retrieve project financial information, commitments, invoices, and transactions.' });
     if (intent.action === 'clarify') return ok({ message: typeof intent.message === 'string' ? intent.message.slice(0, 600) : 'Please specify a project and the financial information to retrieve.' });
     if (intent.action !== 'lookup' || !['summary','commitments','invoices','transactions','reports'].includes(intent.view)) throw new ApiError(502, 'INVALID_AI_RESPONSE', 'Please rephrase that instruction.');
-    const project = projects.find(p => p.id === intent.project_id);
+    const project = projects.find(p => p.id === intent.project_id) ?? selected;
     if (!project) return ok({ message: 'Please name or select one accessible project.' });
     // Invoke the existing business API handler with the caller's bearer token.
     // No model-selected URLs, SQL, RPCs, or write handlers are available here.
@@ -52,12 +52,24 @@ export async function POST(req: NextRequest) {
     const { data } = await result.json();
     // Filter the authorized API's result in application code, not in model-generated SQL.
     // Never calculate a payable balance by combining separate ledgers.
-    const vendorQuery = typeof intent.vendor_name === 'string' ? intent.vendor_name.trim().toLowerCase() : '';
-    if (vendorQuery && data && typeof data === 'object' && !Array.isArray(data)) {
+    const vendorList = data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.vendors) ? data.vendors as Array<Record<string, unknown>> : [];
+    const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const named = vendorList.filter(v => typeof v.name === 'string' && normalize(message).includes(normalize(v.name)));
+    const inferred = named.length === 1 ? String(named[0].name) : '';
+    const vendorQuery = normalize(typeof intent.vendor_name === 'string' && intent.vendor_name.trim() ? intent.vendor_name : inferred);
+    if (!vendorQuery && /septic/i.test(message)) {
+      const septic = vendorList.filter(v => /septic/i.test(String(v.name ?? '')));
+      if (septic.length === 1) {
+        intent.vendor_name = String(septic[0].name);
+      }
+    }
+    const resolvedVendorQuery = vendorQuery || normalize(typeof intent.vendor_name === 'string' ? intent.vendor_name : '');
+    if (!resolvedVendorQuery && /\b(commitment|invoice|payment)\b/i.test(message) && /\b(for|from)\s+\w+/i.test(message)) return ok({ message: 'I could not identify the requested vendor. Please specify the exact vendor name.', project_id: project.id });
+    if (resolvedVendorQuery && data && typeof data === 'object' && !Array.isArray(data)) {
       const source = data as Record<string, unknown>;
       const vendors = Array.isArray(source.vendors) ? source.vendors as Array<Record<string, unknown>> : [];
       const matching = vendors.filter(v => typeof v.name === 'string' && (
-        v.name.toLowerCase() === vendorQuery || v.name.toLowerCase().includes(vendorQuery) || vendorQuery.includes(v.name.toLowerCase())
+        normalize(v.name) === resolvedVendorQuery || normalize(v.name).includes(resolvedVendorQuery) || resolvedVendorQuery.includes(normalize(v.name))
       ));
       if (matching.length !== 1) {
         return ok({ message: matching.length ? 'More than one vendor matches that name. Please specify the vendor.' : `No vendor matching "${intent.vendor_name}" was found in the accessible project financial records.`, project_id: project.id });
