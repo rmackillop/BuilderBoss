@@ -51,7 +51,7 @@ export default function TestConsole({projects,role,userEmail}:{projects:Project[
     }
    }
    setResults(prev=>({...prev,[id]:outcome}));
-  }catch(e){setResults(prev=>({...prev,[id]:{status:'BLOCKED',detail:e instanceof Error?e.message:String(e)}]}));}
+  }catch(e){setResults(prev=>({...prev,[id]:{status:'BLOCKED',detail:e instanceof Error?e.message:String(e)}}));}
   finally{setRunning(null);}
  }
  return <section><h1>Developer Testing</h1><p className="muted">Preview-only test console · API requests use your signed-in account, not a service role. No AI or voice calls.</p><div className="panel stack"><p><b>Signed in:</b> {userEmail} · <b>Role:</b> {role}</p><label>Test project<select value={projectId} onChange={e=>{setProjectId(e.target.value);setResults({});}}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label></div>
