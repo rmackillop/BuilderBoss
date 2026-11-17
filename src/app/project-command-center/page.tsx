@@ -30,7 +30,7 @@ export default function ProjectCommandCenter(){
  const {data:{user}}=await sb.auth.getUser();if(!active)return;
  if(!user){setError('Sign in to BuilderBoss first');return;}
  const {data,error:e}=await sb.from('projects').select('id,name,description').order('name');
- if(!active)return;if(e)setError(e.message);else{const ps=(data??[]) as Project[];setProjects(ps);setSelected(ps[0]?.id??'');}
+ if(!active)return;if(e)setError(e.message);else{const ps=(data??[]) as Project[];setProjects(ps);const requested=new URLSearchParams(window.location.search).get('project');setSelected(ps.find(p=>p.id===requested)?.id??ps[0]?.id??'');}
  })();return()=>{active=false};},[]);
  useEffect(()=>{let active=true;setOverview(null);setPhases({});setMilestones({});setExpandedPhases({});setExpandedMilestones({});
  if(!selected)return;
