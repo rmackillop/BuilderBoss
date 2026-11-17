@@ -9,7 +9,7 @@ type Overview={project:Project;task_total:number;task_complete:number;phases:Pha
 type PhaseDetail={milestones:Milestone[]};
 type MilestoneDetail={tasks:Task[]};
 function Tiles({done,total,schedule,financial}:{done:number;total:number;schedule?:number|null;financial?:number|null}){
- const pct=(n:number|null|undefined)=>n==null?'N/A':`${Number(n).toFixed(1).replace(/\\.0$/,'')}%`;
+ const pct=(n:number|null|undefined)=>n==null?'N/A':`${Number(n).toFixed(1).replace(/\.0$/,'')}%`;
  const tiles=[['Tasks',total?Math.round(done/total*100)+'%':'N/A'],['Schedule elapsed',pct(schedule)],['Financial',pct(financial)]];
  return <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8}}>
  {tiles.map(([label,value])=><div key={label} style={{padding:10,borderRadius:9,background:'#eef2f6',textAlign:'center'}}><small>{label}</small><div style={{fontSize:22,fontWeight:700}}>{value}</div></div>)}
