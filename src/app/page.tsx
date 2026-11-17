@@ -6,7 +6,7 @@ import { getSupabase, isConfigured } from '@/lib/supabase';
 type Tab = 'dashboard'|'projects'|'settings'|'status';
 type Org = { id:string; name:string };
 type Project = { id:string; name:string; description:string|null };
-type Settings = { dependency_mode:'advise'|'enforce'; display_name:string|null };
+type Settings = { dependency_mode:'advise'|'enforce'; display_name:string|null; include_saturdays:boolean; include_sundays:boolean };
 type Membership = { organization_id:string; role:string; organizations:Org | Org[] | null };
 
 const sb = getSupabase();
@@ -21,7 +21,7 @@ export default function Home() {
   const [org,setOrg] = useState<Org|null>(null);
   const [role,setRole] = useState('');
   const [projects,setProjects] = useState<Project[]>([]);
-  const [settings,setSettings] = useState<Settings>({dependency_mode:'advise',display_name:''});
+  const [settings,setSettings] = useState<Settings>({dependency_mode:'advise',display_name:'',include_saturdays:false,include_sundays:false});
   const [newProject,setNewProject] = useState('');
   const [userName,setUserName] = useState('');
   const [dbStatus,setDbStatus] = useState('Not tested');
@@ -47,14 +47,14 @@ export default function Home() {
       setOrg(o); setRole(m?.role??'member');
       const [ps,ss,profile]=await Promise.all([
         sb.from('projects').select('id,name,description').eq('organization_id',o.id).order('created_at',{ascending:false}),
-        sb.from('organization_settings').select('dependency_mode,display_name').eq('organization_id',o.id).maybeSingle(),
+        sb.from('organization_settings').select('dependency_mode,display_name,include_saturdays,include_sundays').eq('organization_id',o.id).maybeSingle(),
         sb.from('user_profiles').select('display_name').eq('id',user.id).maybeSingle()
       ]);
       if(canceled) return;
       if(ps.error || ss.error || profile.error) setDbStatus('Error: '+(ps.error?.message||ss.error?.message||profile.error?.message));
       else setDbStatus('Connected · RLS query passed');
       setProjects((ps.data??[]) as Project[]);
-      if(ss.data) setSettings({dependency_mode:ss.data.dependency_mode,display_name:ss.data.display_name??''});
+      if(ss.data) setSettings({dependency_mode:ss.data.dependency_mode,display_name:ss.data.display_name??'',include_saturdays:ss.data.include_saturdays??false,include_sundays:ss.data.include_sundays??false});
       setUserName(profile.data?.display_name??'');
     };
     void load();
@@ -105,7 +105,7 @@ export default function Home() {
   async function saveSettings(e:FormEvent) {
     e.preventDefault();if(!sb||!org||!user)return;setBusy(true);setNotice('');
     const [a,b]=await Promise.all([
-      sb.from('organization_settings').update({dependency_mode:settings.dependency_mode,display_name:settings.display_name}).eq('organization_id',org.id),
+      sb.from('organization_settings').update({dependency_mode:settings.dependency_mode,display_name:settings.display_name,include_saturdays:settings.include_saturdays,include_sundays:settings.include_sundays}).eq('organization_id',org.id),
       sb.from('user_profiles').upsert({id:user.id,display_name:userName})
     ]);
     setNotice(a.error||b.error?'Error: '+(a.error?.message||b.error?.message):'Settings saved to Supabase');
@@ -116,12 +116,12 @@ export default function Home() {
   if(!user)return <main className="center"><form onSubmit={login} className="panel narrow stack"><span className="brand">BuilderBoss</span><h1>Sign in</h1><p className="muted">POC 1.0 · Invitation-only accounts</p><label>Email<input type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)}/></label><label>Password<input type="password" required autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>{error&&<p className="error">{error}</p>}<button disabled={busy}>{busy?'Signing in…':'Sign in'}</button></form></main>;
   return <div className="shell">
     <header><div className="brand">BuilderBoss <small>POC 1.0</small></div><button className="ghost" onClick={()=>void sb?.auth.signOut()}>Sign out</button></header>
-    <div className="layout"><nav aria-label="Main navigation">{(['dashboard','projects','settings','status'] as Tab[]).map(t=><button key={t} className={t===tab?'nav active':'nav'} onClick={()=>{setTab(t);setNotice('');}}>{t[0].toUpperCase()+t.slice(1)}</button>)}</nav>
+    <div className="layout"><nav aria-label="Main navigation">{(['dashboard','projects','settings','status'] as Tab[]).map(t=><button key={t} className={t===tab?'nav active':'nav'} onClick={()=>{setTab(t);setNotice('');}}>{t[0].toUpperCase()+t.slice(1)}</button>)}<a className="nav" href="/project-command-center">Project Command Center</a></nav>
     <main className="content">
       {notice&&<p className="message" role="status">{notice}</p>}
       {tab==='dashboard'&&<section><h1>Welcome to BuilderBoss</h1><p className="muted">{user.email}</p><div className="cards"><article className="panel"><h2>Organization</h2><p>{org?.name??'No organization assigned'}</p><small>{role||'Contact an administrator'}</small></article><article className="panel"><h2>Projects</h2><p className="stat">{projects.length}</p><button className="link" onClick={()=>setTab('projects')}>View projects →</button></article><article className="panel"><h2>Database</h2><p>{dbStatus}</p></article></div></section>}
-      {tab==='projects'&&<section><h1>Projects</h1><p className="muted">Projects for {org?.name??'your organization'}</p><div className="panel"><form className="inline" onSubmit={createProject}><input aria-label="Project name" placeholder="New project name" required value={newProject} onChange={e=>setNewProject(e.target.value)} disabled={!org}/><button disabled={busy||!org}>Add project</button></form></div><div className="stack">{projects.map(p=><article className="panel item" key={p.id}><div><strong>{p.name}</strong><p className="muted">{p.description||'No description yet'}</p></div><div className="item-actions"><button className="secondary" disabled={busy} onClick={()=>void editProject(p)}>Edit</button><button className="secondary" disabled={busy} onClick={()=>void deleteProject(p)}>Delete</button></div></article>)}{!projects.length&&<p className="muted">No projects yet. Add your first one above.</p>}</div></section>}
-      {tab==='settings'&&<section><h1>Settings</h1><form onSubmit={saveSettings} className="panel stack"><label>Your display name<input value={userName} onChange={e=>setUserName(e.target.value)}/></label><label>Company display name<input value={settings.display_name??''} disabled={role!=='owner'&&role!=='admin'} onChange={e=>setSettings(s=>({...s,display_name:e.target.value}))}/></label><label>Dependency mode<select disabled={role!=='owner'&&role!=='admin'} value={settings.dependency_mode} onChange={e=>setSettings(s=>({...s,dependency_mode:e.target.value as Settings['dependency_mode']}))}><option value="advise">Advise</option><option value="enforce">Enforce</option></select></label><p className="muted">This setting is stored now; task dependency logic will be implemented later.</p><button disabled={busy||!org}>Save settings</button></form></section>}
+      {tab==='projects'&&<section><h1>Projects</h1><p className="muted">Projects for {org?.name??'your organization'}</p><div className="panel"><form className="inline" onSubmit={createProject}><input aria-label="Project name" placeholder="New project name" required value={newProject} onChange={e=>setNewProject(e.target.value)} disabled={!org}/><button disabled={busy||!org}>Add project</button></form></div><div className="stack">{projects.map(p=><article className="panel item" key={p.id}><div><strong>{p.name}</strong><p className="muted">{p.description||'No description yet'}</p></div><div className="item-actions"><a className="secondary" href={'/project-command-center?project='+encodeURIComponent(p.id)}>Overview</a><button className="secondary" disabled={busy} onClick={()=>void editProject(p)}>Edit</button><button className="secondary" disabled={busy} onClick={()=>void deleteProject(p)}>Delete</button></div></article>)}{!projects.length&&<p className="muted">No projects yet. Add your first one above.</p>}</div></section>}
+      {tab==='settings'&&<section><h1>Settings</h1><form onSubmit={saveSettings} className="panel stack"><label>Your display name<input value={userName} onChange={e=>setUserName(e.target.value)}/></label><label>Company display name<input value={settings.display_name??''} disabled={role!=='owner'&&role!=='admin'} onChange={e=>setSettings(s=>({...s,display_name:e.target.value}))}/></label><label>Dependency mode<select disabled={role!=='owner'&&role!=='admin'} value={settings.dependency_mode} onChange={e=>setSettings(s=>({...s,dependency_mode:e.target.value as Settings['dependency_mode']}))}><option value="advise">Advise</option><option value="enforce">Enforce</option></select></label><fieldset disabled={role!=='owner'&&role!=='admin'}><legend>Scheduled working days</legend><label><input type="checkbox" checked={settings.include_saturdays} onChange={e=>setSettings(v=>({...v,include_saturdays:e.target.checked}))}/> Include Saturdays</label><label><input type="checkbox" checked={settings.include_sundays} onChange={e=>setSettings(v=>({...v,include_sundays:e.target.checked}))}/> Include Sundays</label></fieldset><p className="muted">Working-day calculations are performed in Supabase using your organization's settings.</p><p className="muted">Dependency mode is stored now; task dependency logic will be implemented later.</p><button disabled={busy||!org}>Save settings</button></form></section>}
       {tab==='status'&&<section><h1>System status</h1><div className="panel stack"><p><b>Application:</b> BuilderBoss POC 1.0</p><p><b>Authentication:</b> Signed in</p><p><b>Database:</b> {dbStatus}</p><p><b>Organization:</b> {org?.name??'Not assigned'}</p><p><b>Build environment:</b> {process.env.NODE_ENV}</p><p><b>App URL:</b> {typeof window!=='undefined'?window.location.origin:'—'}</p><button className="secondary" onClick={()=>window.location.reload()}>Rerun diagnostics</button></div></section>}
     </main></div>
   </div>;
