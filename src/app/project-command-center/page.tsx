@@ -2,14 +2,15 @@
 import {useEffect,useState} from 'react';
 import {getSupabase} from '@/lib/supabase';
 type Project={id:string;name:string;description:string|null};
-type Phase={id:string;name:string;sequence:number;status:string;task_total:number;task_complete:number};
-type Milestone={milestone:string;task_total:number;task_complete:number;planned_start:string|null;planned_finish:string|null};
+type Phase={id:string;name:string;sequence:number;status:string;task_total:number;task_complete:number;schedule_elapsed:number|null};
+type Milestone={milestone:string;task_total:number;task_complete:number;planned_start:string|null;planned_finish:string|null;schedule_elapsed:number|null};
 type Task={id:string;title:string;status:string;assignee:string|null;planned_start:string|null;planned_finish:string|null;actual_start:string|null;actual_finish:string|null;notes:string|null};
-type Overview={project:Project;task_total:number;task_complete:number;phases:Phase[]};
+type Overview={project:Project;task_total:number;task_complete:number;phases:Phase[];schedule_elapsed:number|null;financial_consumption:number|null};
 type PhaseDetail={milestones:Milestone[]};
 type MilestoneDetail={tasks:Task[]};
-function Tiles({done,total}:{done:number;total:number}){
- const tiles=[['Tasks',total?Math.round(done/total*100)+'%':'N/A'],['Schedule elapsed','N/A'],['Financial','N/A']];
+function Tiles({done,total,schedule,financial}:{done:number;total:number;schedule?:number|null;financial?:number|null}){
+ const pct=(n:number|null|undefined)=>n==null?'N/A':`${Number(n).toFixed(1).replace(/\\.0$/,'')}%`;
+ const tiles=[['Tasks',total?Math.round(done/total*100)+'%':'N/A'],['Schedule elapsed',pct(schedule)],['Financial',pct(financial)]];
  return <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8}}>
  {tiles.map(([label,value])=><div key={label} style={{padding:10,borderRadius:9,background:'#eef2f6',textAlign:'center'}}><small>{label}</small><div style={{fontSize:22,fontWeight:700}}>{value}</div></div>)}
  </div>;
@@ -51,15 +52,15 @@ export default function ProjectCommandCenter(){
  <label htmlFor="project">Project</label><select id="project" value={selected} onChange={e=>setSelected(e.target.value)} style={{display:'block',width:'100%',padding:12,margin:'8px 0 20px'}}>
  {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
  {error&&<p role="alert" style={{color:'#a32222'}}>{error}</p>}
- {overview&&<><h2>{overview.project.name}</h2><Tiles done={overview.task_complete} total={overview.task_total}/>
+ {overview&&<><h2>{overview.project.name}</h2><Tiles done={overview.task_complete} total={overview.task_total} schedule={overview.schedule_elapsed} financial={overview.financial_consumption}/>
  <h3>Phases</h3>{overview.phases.map(p=><section key={p.id} style={{border:'1px solid #ccd5df',borderRadius:12,padding:14,marginBottom:12}}>
  <button type="button" onClick={()=>void expandPhase(p.id)} aria-expanded={!!expandedPhases[p.id]} style={{fontWeight:700,padding:8,width:'100%',textAlign:'left'}}>{expandedPhases[p.id]?'▾':'▸'} {p.name}</button>
- <Tiles done={p.task_complete} total={p.task_total}/>
+ <Tiles done={p.task_complete} total={p.task_total} schedule={p.schedule_elapsed}/>
  {expandedPhases[p.id]&&<div style={{padding:'12px 0 0 16px'}}>
  {busy[p.id]&&<p>Loading milestones…</p>}
  {phases[p.id]?.milestones.map(m=>{const key=JSON.stringify([p.id,m.milestone]);return <section key={key} style={{borderTop:'1px solid #ccd5df',padding:12}}>
  <button type="button" aria-expanded={!!expandedMilestones[key]} onClick={()=>void expandMilestone(p.id,m.milestone)} style={{fontWeight:600,padding:8,width:'100%',textAlign:'left'}}>{expandedMilestones[key]?'▾':'▸'} {m.milestone}</button>
- <Tiles done={m.task_complete} total={m.task_total}/>
+ <Tiles done={m.task_complete} total={m.task_total} schedule={m.schedule_elapsed}/>
  {expandedMilestones[key]&&<div>{busy[key]&&<p>Loading tasks…</p>}
  {milestones[key]?.tasks.map(t=><article key={t.id} style={{borderBottom:'1px solid #e2e7eb',padding:10}}>
  <strong>{t.title}</strong> · {t.status}<div>Planned: {t.planned_start??'—'} to {t.planned_finish??'—'}</div>
